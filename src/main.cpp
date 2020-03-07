@@ -1,10 +1,12 @@
-#define LOG_LOCAL_LEVEL ESP_LOG_VERBOSE
-#include "esp_log.h"
+//#define LOG_LOCAL_LEVEL ESP_LOG_VERBOSE
+//#include "esp_log.h"
 
 #include "Wiegand_monkeyboard/Wiegand_monkeyboard.h"
 #include <WiFi.h>
-#include <WiFiAP.h>
 #include <EEPROM.h>
+
+//http server for AP mode
+#include <WebServer.h>
 
 //https://github.com/fhessel/esp32_https_server
 
@@ -34,8 +36,10 @@
 
 //******[Object inits]******
 WIEGAND wg;
+WebServer server(80);
 httpsserver::SSLCert certificate = httpsserver::SSLCert(example_crt_DER, example_crt_DER_len, example_key_DER, example_key_DER_len);
 httpsserver::HTTPSServer HTTPSServer = httpsserver::HTTPSServer(&certificate);
+
 
 //******[Defines]******
 #define EEPROM_SIZE 512
@@ -46,8 +50,8 @@ httpsserver::HTTPSServer HTTPSServer = httpsserver::HTTPSServer(&certificate);
 
 //******[Network Settings]******
 #define SSID_AP "ESP32_TEST_AP"
-#define PASSW_AP "1234567890"
-#define SSID_CL "RFIDLAB"
+#define PASSW_AP "000987654321000"
+#define SSID_CL "RFID_LAB"
 #define PASSW_CL "iubCGgtds715"
 
 //******[Predefined Values]******
@@ -55,6 +59,7 @@ bool flagAddCard = false,
     flagDeleteCard = false,
     flagServiceMode = false,
     APMode;
+int timer0 = 0;
 
 //******[Prototypes]******
 //----Funcs----
@@ -62,6 +67,7 @@ void unsetFlags();
 
 //----TASKS----
 void serverTask(void *params);
+void httpsTask(void *params);
 
 //----EEPROM----
 void EEPROMwipe();
@@ -72,6 +78,10 @@ bool EEPROMCheckSerialNumberValidation(unsigned long serialNumber);
 void EEPROMReadSerialNumberBase(unsigned long* serialNumberBase);
 
 //----Handlers----
+//http
+void handlerAP404();
+void handlerAPIndex();
+//https
 void handlerIndex(httpsserver::HTTPRequest *req, httpsserver::HTTPResponse *res);
 void handler404(httpsserver::HTTPRequest * req, httpsserver::HTTPResponse * res);
 // void handlerAddCard();
@@ -81,53 +91,56 @@ void handler404(httpsserver::HTTPRequest * req, httpsserver::HTTPResponse * res)
 //void handlerData();
 //void handlerGetEEPROM();
 
-IPAddress local_IP_AP(109,108,112,114);
-IPAddress gatewayAP(1,1,1,1);
-IPAddress subnetAP(255,255,255,0);
-
 void setup() 
 {
-  esp_log_level_set("*", ESP_LOG_ERROR);        // set all components to ERROR level
-  esp_log_level_set("wifi", ESP_LOG_WARN);      // enable WARN logs from WiFi stack
-  esp_log_level_set("dhcpc", ESP_LOG_INFO);     // enable INFO logs from DHCP client
-
   #ifdef DEBUG
     Serial.begin(9600);  
     delay(10);
     Serial.println("\nSerial begin\n");
   #endif // DEBUG 
 
+  //TEST!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  EEPROM.writeByte(0, 1);
+
   // init RFID Reader
 	wg.begin(PIN_D0, PIN_D1);
 
   // init WIFI connection
-
   switch ((int)(EEPROM.readByte(0)))
   {
   case 0:
     APMode = true;
-    //WiFi.mode(WIFI_STA);
     WiFi.softAP(SSID_AP, PASSW_AP);
-    WiFi.begin();
-    //WiFi.softAPConfig(local_IP_AP, gatewayAP, subnetAP);
     #ifdef DEBUG
       Serial.print("AP Started, local IP: ");
       Serial.println(WiFi.softAPIP());
     #endif // DEBUG
+    // TASK HTTP
+    xTaskCreatePinnedToCore(serverTask, "http80", 6144, NULL, 1, NULL, ARDUINO_RUNNING_CORE);
     break;
   case 1:
     APMode = false;
     WiFi.persistent(false);
     WiFi.disconnect(true);
     WiFi.begin(SSID_CL, PASSW_CL);
-    #ifdef DEBUG
-      while (WiFi.status() != WL_CONNECTED)
-      {
-        delay(500);
+    timer0 = millis();
+    while (WiFi.status() != WL_CONNECTED)
+    {
+      delay(500);
+      #ifdef DEBUG
         Serial.print(".");
+      #endif // DEBUG
+      if (millis()-timer0 > 10000)
+      {
+        EEPROM.writeByte(0, 0); //APMode on
+        ESP.restart();
       }
+    }
+    #ifdef DEBUG
       Serial.println("\nConnected.");
     #endif // DEBUG
+    // TASK HTTPS
+    xTaskCreatePinnedToCore(httpsTask, "https443", 6144, NULL, 1, NULL, ARDUINO_RUNNING_CORE);
     break;
   default:
     #ifdef DEBUG
@@ -152,8 +165,7 @@ void setup()
   #endif
   #endif // DEBUG
 
-  // TASKS
-  //xTaskCreatePinnedToCore(serverTask, "https443", 6144, NULL, 1, NULL, ARDUINO_RUNNING_CORE);
+  
   
   // other stuff
   pinMode(led, OUTPUT);
@@ -257,6 +269,27 @@ void EEPROMReadSerialNumberBase(unsigned long* serialNumberBase) // copy EEPROM 
 //******[TASKS]******
 void serverTask(void *params)
 {
+  // begin
+  server.begin();
+
+  // handlers
+  server.onNotFound(handlerAP404);
+  server.on("/", handlerAPIndex);
+
+  //
+  #ifdef DEBUG
+    Serial.print("HTTP server started on local ip: ");
+    Serial.print(WiFi.softAPIP());
+    Serial.println(" on port 80.");
+  #endif // DEBUG
+  while (true)
+  {
+    server.client();
+  }
+}
+
+void httpsTask(void *params)
+{
   //init HTTPS Server
 
   // handlers processing
@@ -274,10 +307,10 @@ void serverTask(void *params)
   {
     #ifdef DEBUG
     Serial.print("WebServer started. Local ip is:\t");
-    Serial.print(WiFi.localIP().toString().c_str());
+    Serial.print(WiFi.localIP());
     Serial.println(" on port 443.");
     #endif // DEBUG
-    for (;;)
+    while (true)
     {
       HTTPSServer.loop();
       delay(1);
@@ -286,6 +319,22 @@ void serverTask(void *params)
 }
 
 //******[Handlers]******
+//http
+void handlerAP404()
+{
+  server.send(404, "text/html", String("<!DOCTYPE html>")+
+                                "<html><head>"+
+                                "<title>Not found</title>"
+                                "</head><body>"+
+                                "<h1>404 Not Found</h1><p>The requested resource was not found on this server.</p>"
+                                "</body></html>");
+}
+
+void handlerAPIndex()
+{
+  server.send(200, "text/html", "TEST CONNECTION SUCCESS");
+}
+//https
 void handlerIndex(httpsserver::HTTPRequest *req, httpsserver::HTTPResponse *res)
 {
   res->setHeader("Content-Type", "text/html");
