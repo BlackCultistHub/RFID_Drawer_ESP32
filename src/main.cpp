@@ -24,6 +24,9 @@
 #include "cert.h"
 #include "private_key.h"
 
+//Include html pages in c-style
+#include "pages/pages.h"
+
 /** Check if we have multiple cores */
 #if CONFIG_FREERTOS_UNICORE
 #define ARDUINO_RUNNING_CORE 0
@@ -51,8 +54,10 @@ httpsserver::HTTPSServer HTTPSServer = httpsserver::HTTPSServer(&certificate);
 //******[Network Settings]******
 #define SSID_AP "ESP32_TEST_AP"
 #define PASSW_AP "000987654321000"
-#define SSID_CL "RFID_LAB"
-#define PASSW_CL "iubCGgtds715"
+#define SSID_CL "InterZet610_2.4"
+#define PASSW_CL "0987654321000"
+#define SSID_CL2 "RFID_LAB"
+#define PASSW_CL2 "iubCGgtds715"
 
 //******[Predefined Values]******
 bool flagAddCard = false,
@@ -81,6 +86,11 @@ void EEPROMReadSerialNumberBase(unsigned long* serialNumberBase);
 //http
 void handlerAP404();
 void handlerAPIndex();
+void handlerAPCloudPage();
+void handlerAPCustomPage();
+void handlerAPLocalSetup();
+void handlerAPChangeConfig();
+
 //https
 void handlerIndex(httpsserver::HTTPRequest *req, httpsserver::HTTPResponse *res);
 void handler404(httpsserver::HTTPRequest * req, httpsserver::HTTPResponse * res);
@@ -99,8 +109,21 @@ void setup()
     Serial.println("\nSerial begin\n");
   #endif // DEBUG 
 
-  //TEST!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  EEPROM.writeByte(0, 1);
+  //init EEPROM
+  if(!EEPROM.begin(EEPROM_SIZE))
+  {
+    #ifdef DEBUG
+      Serial.println("ERROR beginning EEPROM. Rebooting...");
+    #endif //DEBUG
+    ESP.restart();
+  }
+  else
+  {
+    #ifdef DEBUG
+      Serial.println("EEPROM initialized.");
+    #endif //DEBUG
+  }
+  
 
   // init RFID Reader
 	wg.begin(PIN_D0, PIN_D1);
@@ -130,9 +153,10 @@ void setup()
       #ifdef DEBUG
         Serial.print(".");
       #endif // DEBUG
-      if (millis()-timer0 > 10000)
+      if (millis()-timer0 > 15000)
       {
         EEPROM.writeByte(0, 0); //APMode on
+        EEPROM.commit();
         ESP.restart();
       }
     }
@@ -140,13 +164,16 @@ void setup()
       Serial.println("\nConnected.");
     #endif // DEBUG
     // TASK HTTPS
-    xTaskCreatePinnedToCore(httpsTask, "https443", 6144, NULL, 1, NULL, ARDUINO_RUNNING_CORE);
+    //xTaskCreatePinnedToCore(httpsTask, "https443", 6144, NULL, 1, NULL, ARDUINO_RUNNING_CORE);
     break;
   default:
     #ifdef DEBUG
       Serial.println("SOMETHING BAD HAPPENED!");
       Serial.print("EEPROM read: ");
       Serial.println(EEPROM.readByte(0));
+      Serial.print("Writing 0 to [0] and restarting...");
+      EEPROM.put(0, 0);
+      EEPROM.commit();
     #endif // DEBUG
     break;
   }
@@ -169,6 +196,14 @@ void setup()
   
   // other stuff
   pinMode(led, OUTPUT);
+
+  Serial.println(EEPROM.readByte(0));
+  Serial.println(EEPROM.readByte(1));
+  Serial.println(EEPROM.readByte(2));
+  String checkEE = "";
+  EEPROM.get(0, checkEE);
+  Serial.println(checkEE);
+
 }
 
 void loop() 
@@ -210,9 +245,11 @@ void unsetFlags()
 //----EEPROM----  NEEDS CORRECTION IN [0-23?]
 void EEPROMwipe() //wipe everything [0-FF]
 {
-  //save imei
   for (int i = 0; i < EEPROM.length(); i++)
-    EEPROM.write(i, 0);
+  {
+    EEPROM.put(i, 0);
+    EEPROM.commit();
+  }
 }
 
 int EEPROMGetFreeAddress()  //finds free space size of ULong in [0-FF]
@@ -275,6 +312,11 @@ void serverTask(void *params)
   // handlers
   server.onNotFound(handlerAP404);
   server.on("/", handlerAPIndex);
+  server.on("/cloudSetup", HTTP_POST, handlerAPCloudPage);
+  server.on("/localSetup", handlerAPLocalSetup);
+  server.on("/customServerSetup", HTTP_POST, handlerAPCustomPage);
+  server.on("/changeAPConfig", HTTP_POST, handlerAPChangeConfig);
+  server.on("/factoryReset", HTTP_POST, handlerAPResetDevice);
 
   //
   #ifdef DEBUG
@@ -284,7 +326,8 @@ void serverTask(void *params)
   #endif // DEBUG
   while (true)
   {
-    server.client();
+    server.handleClient();
+    delay(1);
   }
 }
 
@@ -322,18 +365,43 @@ void httpsTask(void *params)
 //http
 void handlerAP404()
 {
-  server.send(404, "text/html", String("<!DOCTYPE html>")+
-                                "<html><head>"+
-                                "<title>Not found</title>"
-                                "</head><body>"+
-                                "<h1>404 Not Found</h1><p>The requested resource was not found on this server.</p>"
-                                "</body></html>");
+  server.send(404, "text/html", String();
 }
 
 void handlerAPIndex()
 {
-  server.send(200, "text/html", "TEST CONNECTION SUCCESS");
+  server.send(200, "text/html", APIndex);
 }
+
+void handlerAPCloudPage()
+{
+  //DO ARGS
+  server.send(200, "text/html", APConfirmCloudPage);
+}
+
+void handlerAPCustomPage()
+{
+  //DO ARGS
+  server.send(200, "text/html", APConfirmCustomPage);
+}
+
+void handlerAPLocalSetup()
+{
+  server.send(200, "text/html", APLocalSetupPage);
+}
+
+void handlerAPChangeConfig()
+{
+  //DO ARGS
+  server.send(200, "text/html", APChangeConfigPage);
+}
+
+void handlerAPResetDevice()
+{
+  EEPROMwipe();
+  server.send(200, "text/html", APResetDevicePage);
+}
+
 //https
 void handlerIndex(httpsserver::HTTPRequest *req, httpsserver::HTTPResponse *res)
 {
@@ -366,29 +434,4 @@ void handler404(httpsserver::HTTPRequest * req, httpsserver::HTTPResponse * res)
   res->println("</html>");
 }
 
-// void handlerData()  //temp
-// {
-//   for (uint8_t i = 0; i < MAX_DATA_ARGUMENT_AMOUNT; i++)
-//   {
-//     args[i] = "0";
-//     argVals[i] = "0";
-//   }
-//   for(uint8_t i = 0; i < server.args(); i++)
-//   {
-//     args[i] = server.argName(i);
-//     argVals[i] = server.arg(i);
-//   }
-//   argLen = server.args();
-//   String msg = String("<h1>Hello! ESP32.<h1><br>")+
-//                       "Data recieve completed.<br>"+
-//                       "Recieved "+server.args()+" arguments.<br>"+
-//                       "Argument list:<br>";
-//   for(uint8_t i = 0; i < server.args(); i++)
-//     msg += (i+1)+". "+server.argName(i)+": "+server.arg(i)+"<br>";
-//   server.send(200, "text/html", msg);
-// }
 
-// void handlerGetEEPROM()
-// {
-
-// }

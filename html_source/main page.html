@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>ESP32 Locker</title>
+    </head>
+    <body>
+        <table align=center>
+            <tr>
+                <td><h1>ESP32 Locker Setup</h1></td>
+            </tr>
+            <tr>
+                <td><h3>Setup your connection to cloud:</h3></td>
+            </tr>
+            <tr>
+                <td>
+                    <form action="/cloudSetup" method="POST">
+                        <b>SSID: </b><input type="text" size="30" name="SSID" placeholder="Type your WiFi SSID here..." autocomplete="off" required>
+                        <p><details>
+                            <summary><b>What is SSID?</b></summary>
+                            <b>SSID</b> is simply a symbolyc name of a WiFi Access Point.
+                        </details></p>
+                        <p><b>Password: </b><input type="password" size="30" name="password" placeholder="Type your WiFi password here..." autocomplete="off" required></p>
+                        <p><b>Verification code: </b><input type="text" size="30" name="dtoken" placeholder="Type your code here..." autocomplete="off" required></p>
+                        <p><input type="submit" value="Connect to cloud"/></p>
+                    </form>
+                </td>
+            </tr>
+            <tr>
+                <td><h3>Or visit local setup page</h3></td>
+            </tr>
+            <tr>
+                <td>
+                    <form action="/localSetup">
+                        <input type="submit" value="Local Setup">
+                    </form>
+                </td>
+            </tr>
+            <tr>
+                <td><br><br><br><br><br><br></td>
+            </tr>
+            <tr>
+                <td>
+                    <h3>Add a custom server address</h3>
+                    (Advanced users only!)<br>
+                    Pay attention that this feature supports only http now.
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    <form action="/customServerSetup" method="POST">
+                        <b>SSID: </b><input type="text" size="30" name="SSID" placeholder="Type your WiFi SSID here..." autocomplete="off" required>
+                        <p><b>Password: </b><input type="password" size="30" name="password" placeholder="Type your WiFi password here..." autocomplete="off" required></p>
+                        <b>IP-address: </b><input type="text" name="customIP" placeholder="ex. 127.0.0.1" minlength="7" maxlength="15" size="15" pattern="^((\d{1,2}|1\d\d|2[0-4]\d|25[0-5])\.){3}(\d{1,2}|1\d\d|2[0-4]\d|25[0-5])$" required>
+                        <p><b>Port: </b><input type="number" name="customPort" placeholder="ex. 8080" min="0" max="65535" required></p>
+                        <p><input type="submit" value="Connect to custom server"/></p>
+                    </form>
+                </td>
+            </tr>
+            <tr>
+                <td><br><br><br></td>
+            </tr>
+            <tr>
+                <td>
+                    <details>
+                        <summary><b>Factory reset</b></summary>
+                        <details>
+                            <summary><b>Are you sure?</b></summary>
+                            <b>ALL DATA WILL BE LOST</b><br>
+                            <form action="/factoryReset" method="POST">
+                                <input type="submit" value="Reset to factory settings.">
+                            </form>
+                        </details>
+                    </details>
+                </td>
+            </tr>
+        </table>
+    </body>
+</html>

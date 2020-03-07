@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>Local setup</title>
+    </head>
+    <body>
+        <table align=center>
+            <tr>
+                <td><h1>Local setup</h1></td>
+            </tr>
+            <tr>
+                <td>
+                    <b>Local use is very limited and we strongly recommend to connect to cloud</b><br><br>
+                        Here is the user manual in FAQ-style for local use:
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    <details>
+                        <summary><b>0. How to begin?</b></summary>
+                        Your system is already working.<br>
+                        Simply add a new keycard and you're ready to go.<br>
+                        <b>Please pay attention to paragraph 3 of this FAQ.</b>
+                    </details>
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    <details>
+                        <summary><b>1. How to add a keycard?</b></summary>
+                        To add a keycard you will need a master card.<br>
+                        <b>1.</b>Put a maskter card near reader.<br>
+                        &emsp;You'll hear a sound and yellow led will glow.<br>
+                        &emsp;You'll now have a minute to add a keycard.<br>
+                        <b>2.</b>Open doors you want to link to card.<br>
+                        &emsp;(Keycard is only able to open linked doors)<br>
+                        <b>3.</b>Put a new keycard you want to add near reader.<br>
+                        &emsp;After a sound and green led's flash your card is added.
+                    </details>
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    <details>
+                        <summary><b>2. How to delete a keycard?</b></summary>
+                        To delete a keycard you will need a master card.<br>
+                        Note that your card's number must be already added to delete it.<br>
+                        <b>1.</b>Put a maskter card near reader.<br>
+                        &emsp;You'll hear a sound and yellow led will glow.<br>
+                        <b>2.</b>Put a keycard you want to delete near reader.<br>
+                        &emsp;After a sound and red led's flash your card is deleted.
+                    </details>
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    <details>
+                        <summary><b>3. How to get more secure?</b></summary>
+                        Note that in case of local use your ESP32 is always in Access Point mode.<br>
+                        Because every ESP32 has same WiFi SSID and password by default it is<br>
+                        &emsp;highly recommended to change them.<br>
+                        (You'll also need to change SSID in case of multiple local devices)
+                        <form action="/changeAPConfig" method="POST">
+                            <b>1.</b>Change your device's SSID.
+                            <p><input type="text" size="30" name="newSSID" placeholder="Type your new SSID here..." autocomplete="off"></p>
+                            <p><b>2.</b>Change your device's password</p>
+                            <p><input type="text" size="30" name="newPassword" placeholder="Type your new password here..." autocomplete="off" required></p>
+                            <p><input type="submit" value="Change"/></p>
+                        </form>
+                    </details>
+                </td>
+            </tr>
+            <tr>
+                <td><br><br><br></td>
+            </tr>
+            <tr>
+                <td>
+                    <b>Please note that local use supports only basic functionality and is not very secure.</b>
+                </td>
+            </tr>
+        </table>
+    </body>
+</html>
