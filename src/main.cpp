@@ -365,7 +365,7 @@ void httpsTask(void *params)
 //http
 void handlerAP404()
 {
-  server.send(404, "text/html", String();
+  server.send(404, "text/html", AP404);
 }
 
 void handlerAPIndex()
