@@ -1,9 +1,12 @@
 //#define LOG_LOCAL_LEVEL ESP_LOG_VERBOSE
 //#include "esp_log.h"
 
-#include "Wiegand_monkeyboard/Wiegand_monkeyboard.h"
+//#include "libs/Wiegand_monkeyboard/Wiegand_monkeyboard.h"
+#include <Wiegand_monkeyboard.h>
 #include <WiFi.h>
-#include <EEPROM.h>
+
+//include project-based EEPROM operations
+#include "eeprom_operations/eeprom_operations.h"
 
 //http server for AP mode
 #include <WebServer.h>
@@ -90,6 +93,7 @@ void handlerAPCloudPage();
 void handlerAPCustomPage();
 void handlerAPLocalSetup();
 void handlerAPChangeConfig();
+void handlerAPResetDevice();
 
 //https
 void handlerIndex(httpsserver::HTTPRequest *req, httpsserver::HTTPResponse *res);
@@ -155,8 +159,7 @@ void setup()
       #endif // DEBUG
       if (millis()-timer0 > 15000)
       {
-        EEPROM.writeByte(0, 0); //APMode on
-        EEPROM.commit();
+        
         ESP.restart();
       }
     }
@@ -240,67 +243,6 @@ void unsetFlags()
   flagAddCard = false;
   flagDeleteCard = false;
   flagServiceMode = false;
-}
-
-//----EEPROM----  NEEDS CORRECTION IN [0-23?]
-void EEPROMwipe() //wipe everything [0-FF]
-{
-  for (int i = 0; i < EEPROM.length(); i++)
-  {
-    EEPROM.put(i, 0);
-    EEPROM.commit();
-  }
-}
-
-int EEPROMGetFreeAddress()  //finds free space size of ULong in [0-FF]
-{
-  unsigned long temp = 0;
-  int i = 0;
-  for (;;i += 4)
-  {
-    temp = EEPROM.readULong(i);
-    if (temp == 0)
-      break;
-  }
-  return i;
-}
-
-void EEPROMAddSerialNumber(unsigned long serialNumber)
-{
-  EEPROM.writeULong(EEPROMGetFreeAddress(),serialNumber);
-}
-
-void EEPROMDeleteSerialNumber(unsigned long serialNumber) //finds matching ULong in [0-FF] and sets to 0
-{
-  unsigned long temp = 0;
-  for (int i = 0;;i += 4)
-  {
-    temp = EEPROM.readLong(i);
-    if (temp == serialNumber)
-      EEPROM.writeULong(i, 0);
-  }
-}
-
-bool EEPROMCheckSerialNumberValidation(unsigned long serialNumber) //finds if any of ULong in EEPROM matches the given in [0-FF]
-{
-  unsigned long temp = 0;
-  for (int i = 0;i < 256;i += 4)
-  {
-    temp = EEPROM.readLong(i);
-    if (temp == serialNumber)
-      return true;
-  }
-  return false;
-}
-
-void EEPROMReadSerialNumberBase(unsigned long* serialNumberBase) // copy EEPROM by ULong [0-FF]
-{
-  int i = 0;
-  for (int j = 0; j < 256; j += 4)
-  {
-    serialNumberBase[i] = EEPROM.readULong(j);
-    i++;
-  }
 }
 
 //******[TASKS]******

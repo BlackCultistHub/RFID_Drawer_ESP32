@@ -1,5 +1,5 @@
-#ifndef PAGES_H_
-#define PAGES_H_
+#ifndef PAGES_H
+#define PAGES_H
 #include <WString.h>
 extern String AP404;
 extern String APIndex;
